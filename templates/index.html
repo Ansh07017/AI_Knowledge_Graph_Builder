@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KGB | Knowledge Graph Builder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        body {
+            background: radial-gradient(circle at top right, #0f172a, #000000);
+            min-height: 100vh;
+            color: #f8fafc;
+        }
+        /* Glassmorphic Utilities */
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        }
+        .glass-header {
+            background: linear-gradient(90deg, rgba(16, 185, 129, 0.1), rgba(59, 130, 246, 0.1));
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        /* Graph Container */
+        #kg-network {
+            height: 500px;
+            width: 100%;
+            border-radius: 0.75rem;
+            outline: none;
+        }
+        /* Custom Scrollbar for feeds */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+    </style>
+</head>
+<body class="p-6 font-sans">
+
+    <header class="max-w-7xl mx-auto mb-8 flex justify-between items-center glass-panel rounded-2xl p-6">
+        <div>
+            <h1 class="text-3xl font-extrabold tracking-tight">
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-500">KGB</span>
+                <span class="text-gray-300 font-light">| Knowledge Graph Builder</span>
+            </h1>
+            <p class="text-sm text-gray-400 mt-1">Enterprise Support Intelligence Pipeline</p>
+        </div>
+        <div class="flex items-center gap-4">
+            <div id="status-indicator" class="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800 border border-slate-700">
+                <div class="w-2 h-2 rounded-full bg-slate-500" id="status-dot"></div>
+                <span class="text-sm font-medium text-gray-300" id="status-text">System Ready</span>
+            </div>
+            <button onclick="startIngestion()" id="start-btn" class="bg-gradient-to-r from-emerald-500 to-cyan-600 hover:from-emerald-400 hover:to-cyan-500 text-white px-6 py-2.5 rounded-full font-semibold transition-all transform hover:scale-105 shadow-lg shadow-cyan-500/20">
+                Initialize Pipeline ⚡
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <div class="lg:col-span-5 flex flex-col gap-6">
+            
+            <div class="glass-panel rounded-2xl overflow-hidden flex flex-col h-[250px]">
+                <div class="glass-header p-4 flex justify-between items-center">
+                    <h2 class="text-sm font-bold text-gray-200 uppercase tracking-wider">1. Raw Data Ingestion</h2>
+                    <span class="text-xs font-mono text-cyan-400 bg-cyan-400/10 px-2 py-1 rounded">cleaned_tickets.xlsx</span>
+                </div>
+                <div id="raw-feed" class="p-4 overflow-y-auto flex-1 space-y-3">
+                    <p class="text-gray-500 text-sm italic text-center mt-8">Awaiting data stream...</p>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-2xl overflow-hidden flex flex-col h-[400px]">
+                <div class="glass-header p-4">
+                    <h2 class="text-sm font-bold text-gray-200 uppercase tracking-wider">2. Triplet Extraction Engine</h2>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-px bg-slate-700/50 flex-1 overflow-hidden">
+                    <div class="bg-slate-900/50 p-4 flex flex-col">
+                        <div class="flex items-center gap-2 mb-3 pb-2 border-b border-white/5">
+                            <span class="text-xs font-semibold text-emerald-400">Rules Engine</span>
+                        </div>
+                        <div id="rule-feed" class="overflow-y-auto flex-1 space-y-2 text-xs"></div>
+                    </div>
+                    
+                    <div class="bg-slate-900/50 p-4 flex flex-col">
+                        <div class="flex items-center gap-2 mb-3 pb-2 border-b border-white/5">
+                            <span class="text-xs font-semibold text-purple-400">Llama 3.1</span>
+                        </div>
+                        <div id="llm-feed" class="overflow-y-auto flex-1 space-y-2 text-xs"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-7 flex flex-col gap-6">
+            
+            <div class="glass-panel rounded-2xl overflow-hidden relative">
+                <div class="glass-header p-4 flex justify-between items-center absolute top-0 left-0 w-full z-10 bg-transparent border-none">
+                    <h2 class="text-sm font-bold text-gray-200 uppercase tracking-wider backdrop-blur-md bg-black/20 px-3 py-1 rounded-lg">3. Live Ontology Network</h2>
+                </div>
+                <div id="kg-network"></div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4">
+                <div class="glass-panel p-5 rounded-2xl text-center">
+                    <div class="text-3xl font-mono font-bold text-cyan-400" id="count-tickets">0</div>
+                    <div class="text-xs text-gray-400 mt-1 uppercase tracking-widest">Tickets Parsed</div>
+                </div>
+                <div class="glass-panel p-5 rounded-2xl text-center">
+                    <div class="text-3xl font-mono font-bold text-emerald-400" id="count-nodes">0</div>
+                    <div class="text-xs text-gray-400 mt-1 uppercase tracking-widest">Unique Entities</div>
+                </div>
+                <div class="glass-panel p-5 rounded-2xl text-center">
+                    <div class="text-3xl font-mono font-bold text-purple-400" id="count-edges">0</div>
+                    <div class="text-xs text-gray-400 mt-1 uppercase tracking-widest">Relationships</div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // Vis.js Graph Setup
+        const nodes = new vis.DataSet([]);
+        const edges = new vis.DataSet([]);
+        const container = document.getElementById('kg-network');
+        
+        const data = { nodes: nodes, edges: edges };
+        const options = {
+            nodes: {
+                shape: 'dot',
+                size: 16,
+                font: { color: '#f8fafc', size: 12 },
+                borderWidth: 2,
+                shadow: true
+            },
+            edges: {
+                width: 1.5,
+                color: { color: 'rgba(255,255,255,0.2)', highlight: '#38bdf8' },
+                font: { color: '#94a3b8', size: 10, align: 'top' },
+                arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+                smooth: { type: 'continuous' }
+            },
+            physics: {
+                forceAtlas2Based: { gravitationalConstant: -50, centralGravity: 0.01, springLength: 100 },
+                minVelocity: 0.75,
+                solver: 'forceAtlas2Based'
+            }
+        };
+        const network = new vis.Network(container, data, options);
+
+        // Helper to format Triplets into HTML
+        function formatTriplet(t, isLLM) {
+            const color = isLLM ? 'text-purple-300' : 'text-emerald-300';
+            return `
+                <div class="bg-black/40 p-2 rounded border border-white/5 font-mono leading-relaxed">
+                    <span class="text-gray-300">${t.subject}</span><br>
+                    <span class="${color}">↳ [${t.predicate}]</span><br>
+                    <span class="text-gray-300">${t.object}</span>
+                </div>
+            `;
+        }
+
+        // Color mapping for nodes
+        function getNodeColor(category) {
+            const colors = {
+                'Customer': { background: '#1e40af', border: '#60a5fa' },
+                'Product': { background: '#065f46', border: '#34d399' },
+                'Issue': { background: '#701a75', border: '#e879f9' },
+                'Default': { background: '#334155', border: '#94a3b8' }
+            };
+            return colors[category] || colors['Default'];
+        }
+
+        async function startIngestion() {
+            const btn = document.getElementById('start-btn');
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="animate-pulse">Processing...</span>';
+            statusDot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]";
+            statusText.innerText = "Extracting & Building Graph";
+
+            // Clear previous UI
+            document.getElementById('raw-feed').innerHTML = '';
+            document.getElementById('rule-feed').innerHTML = '';
+            document.getElementById('llm-feed').innerHTML = '';
+            nodes.clear();
+            edges.clear();
+
+            try {
+                // Call the Flask backend
+                const response = await fetch('/process_graph');
+                const results = await response.json();
+
+                let ticketCount = 0;
+                let edgeCount = 0;
+
+                results.forEach((record, index) => {
+                    // Simulate streaming delay for UI effect
+                    setTimeout(() => {
+                        ticketCount++;
+                        document.getElementById('count-tickets').innerText = ticketCount;
+
+                        // 1. Update Raw Feed
+                        const rawHtml = `
+                            <div class="bg-black/30 p-3 rounded-lg border border-white/5 mb-3">
+                                <div class="text-xs text-cyan-500 font-bold mb-1">Ticket ID: ${record.ticket_id}</div>
+                                <div class="text-gray-300 text-sm leading-snug">${record.raw_text}</div>
+                            </div>
+                        `;
+                        document.getElementById('raw-feed').insertAdjacentHTML('afterbegin', rawHtml);
+
+                        // Function to add triplets to graph and UI
+                        const processTriplets = (triplets, uiElementId, isLLM) => {
+                            triplets.forEach(t => {
+                                // Add to UI Feed
+                                document.getElementById(uiElementId).insertAdjacentHTML('afterbegin', formatTriplet(t, isLLM));
+                                
+                                // Add to Graph
+                                try { nodes.add({ id: t.subject, label: t.subject, color: getNodeColor('Default') }); } catch(e) {}
+                                try { nodes.add({ id: t.object, label: t.object, color: getNodeColor('Default') }); } catch(e) {}
+                                try { 
+                                    edges.add({ from: t.subject, to: t.object, label: t.predicate }); 
+                                    edgeCount++;
+                                } catch(e) {}
+                            });
+                        };
+
+                        // 2. Process Structural Rules
+                        if(record.structural_triplets) {
+                            processTriplets(record.structural_triplets, 'rule-feed', false);
+                        }
+                        
+                        // 3. Process LLM Extraction
+                        if(record.semantic_triplets) {
+                            processTriplets(record.semantic_triplets, 'llm-feed', true);
+                        }
+
+                        // Update Counters
+                        document.getElementById('count-nodes').innerText = nodes.length;
+                        document.getElementById('count-edges').innerText = edgeCount;
+
+                    }, index * 800); // 800ms delay between records for visual effect
+                });
+
+                // Reset Button after total estimated time
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Initialize Pipeline ⚡';
+                    statusDot.className = "w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]";
+                    statusText.innerText = "Processing Complete";
+                }, results.length * 800 + 500);
+
+            } catch (err) {
+                statusDot.className = "w-2 h-2 rounded-full bg-red-500";
+                statusText.innerText = "Connection Failed";
+                btn.disabled = false;
+                btn.innerHTML = 'Retry Pipeline';
+                console.error(err);
+            }
+        }
+    </script>
+</body>
+</html>

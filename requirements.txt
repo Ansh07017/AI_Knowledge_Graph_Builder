@@ -1,0 +1,29 @@
+# --- Core Framework & Web Server ---
+Flask==3.0.0
+flask-cors==4.0.0
+requests==2.31.0
+
+# --- Data Processing ---
+# Using flexible versions for stability on Python 3.10
+pandas>=2.1.0
+openpyxl==3.1.2
+numpy>=1.24.0
+
+# --- Natural Language Processing (Efficiency) ---
+spacy>=3.7.0
+# Note: Run: python -m spacy download en_core_web_sm after install
+
+# --- GenAI & LLM Orchestration (Quality & Accuracy) ---
+langchain>=0.1.0
+langchain-groq
+langchain-community
+python-dotenv==1.0.0
+
+# --- Graph Database Connectivity ---
+# py2neo is great for simple scripts, neo4j driver is best for production
+py2neo==2021.2.4
+neo4j>=5.14.0
+
+# --- Development Tools ---
+ipykernel
+jupyter
